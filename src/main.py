@@ -25,11 +25,15 @@ experiment_id = str(uuid.uuid4().fields[-1])[:5]
 experiment_name = args.dataset + "_" + \
     str(args.embedding_dim) + "_" + args.sampling_method + "_" + args.model + "_" + experiment_id
 print(experiment_name)
-
+args.dataset = "voiceprint"
 if args.dataset == "Cars3D":
     train_data = Cars3D(root=args.data_path, mode="train")
     query_data = Cars3D(root=args.data_path, mode="query")
     gallery_data = Cars3D(root=args.data_path, mode="gallery")
+elif args.dataset == "voiceprint":
+    train_data = VoicePrint(root=args.data_path, mode="train")
+    query_data = VoicePrint(root=args.data_path, mode="query")
+    gallery_data = VoicePrint(root=args.data_path, mode="gallery")
 elif args.dataset == "CarsEPFL":
     train_data = CarsEPFL(root=args.data_path, mode="train")
     query_data = CarsEPFL(root=args.data_path, mode="query")
@@ -68,26 +72,28 @@ else:
     raise NotImplementedError
 
 
-# train_dataset = BaseData(train_data, args.sampling_method)
+train_dataset = BaseData(train_data, args.sampling_method)
 query_dataset = BaseData(query_data, args.sampling_method)
 gallery_dataset = BaseData(gallery_data, args.sampling_method)
 
-# if args.sampling_method == "batch_hard" or "batch_soft":
-#     balanced_sampler = OnlineSampler(train_dataset.targets, n_classes=args.n_classes, n_samples=args.n_samples)
-#     train_loader = DataLoader(train_dataset, batch_sampler=balanced_sampler)
-# else:
-#     train_loader = DataLoader(
-#         train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+if args.sampling_method == "batch_hard" or "batch_soft":
+    balanced_sampler = OnlineSampler(train_dataset.targets, n_classes=args.n_classes, n_samples=args.n_samples)
+    train_loader = DataLoader(train_dataset, batch_sampler=balanced_sampler)
+    print(train_dataset)
+    print(train_loader)
+else:
+    train_loader = DataLoader(
+        train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
 query_loader = DataLoader(
     query_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 gallery_loader = DataLoader(
     gallery_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
-# optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-# scheduler = lr_scheduler.StepLR(optimizer, step_size=args.step_size)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=args.step_size)
 
-# train(model, criterion, train_loader, query_loader, gallery_loader, optimizer, scheduler, experiment_name, args.sampling_method, n_epochs=args.n_epochs)
+train(model, criterion, train_loader, query_loader, gallery_loader, optimizer, scheduler, experiment_name, args.sampling_method, n_epochs=args.n_epochs)
 
 maps = OrderedDict(
     {"map_1": [], "map_5": [], "map_50": [], "map_100": [], "map_gallery": []})

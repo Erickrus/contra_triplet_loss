@@ -8,6 +8,81 @@ import pickle
 
 from utils import make_directory
 
+class VoicePrint:
+    def __init__(self, root, mode, transform=None, train_size=10, image_size=32, query_split=10):
+        self.data_path = os.path.join(root, "VoicePrint", "images")
+        self.train = True if mode == "train" else False
+        self.mode = mode
+        self.transform = transform
+        self.train_size = train_size
+        self.query_split = query_split
+
+        self.tensor_transform = transforms.Compose(
+            [transforms.Resize((image_size, image_size)), transforms.ToTensor()])
+
+        self.data_files = self.read_data()
+        self.data, self.targets = self.load_data()
+
+    def read_data(self):
+        vps = [f for f in os.listdir(self.data_path) if f.startswith("vp")]
+        vps.sort()  # sort to get always the same train/test set
+        self.map_vp2idx(vps)
+        if self.train:
+            vps = vps[:self.train_size]
+        else:
+            vps = vps[self.train_size:]
+        print(self.mode, self.train_size, vps)
+        return self.read_all_files(vps)
+
+    def read_all_files(self, paths):
+        all_vps = []
+        for path in paths:
+            temp_path = os.path.join(self.data_path, path)
+            print(temp_path)
+            vps = [os.path.join(temp_path, f) for f in os.listdir(
+                os.path.join(temp_path)) if f.startswith("A")]
+            print(len(vps))
+            if self.mode == "train":
+                all_vps += vps
+            elif self.mode == "query":
+                all_vps += vps[:self.query_split]
+            elif self.mode == "gallery":
+                all_vps += vps[self.query_split:]
+        return all_vps
+    def map_vp2idx(self, vps):
+        self.vp2idx = {}
+        self.idx2vp = {}
+        for idx, vp in enumerate(vps):
+            self.vp2idx[vp] = idx
+            self.idx2vp[idx] = vp
+
+    def load_data(self):
+        data = []
+        targets = []
+        for data_point in self.data_files:
+            target = self.vp2idx[data_point.split(
+                "/")[5]]  # map vp_id_mesh to idx
+            im = Image.open(data_point)
+            w, h = im.size
+            for i in range(w-31):
+                image = im.crop((i, 0, i+31, 31))
+                image = self.process_data(image)
+                data.append(image)
+                targets.append(target)
+
+        return torch.cat(data), targets
+
+    def process_data(self, image):
+        image = self.tensor_transform(image)
+        return image.unsqueeze(dim=0)
+
+    def __getitem__(self, idx):
+        return self.data[idx], self.targets[idx]
+
+    def __len__(self):
+        return len(self.data_files)
+
+
 class CarsStanford:
     def __init__(self, root, mode, transform=None, train_size=120, image_size=32, query_split=10):
         self.data_path = os.path.join(root, "StanfordCars")
@@ -180,7 +255,7 @@ class CarsVeRi:
 
 
 class Cars3D:
-    def __init__(self, root, mode, transform=None, train_size=100, image_size=32, query_split=10):
+    def __init__(self, root, mode, transform=None, train_size=10, image_size=32, query_split=1):
         self.data_path = os.path.join(root, "Cars3D", "images")
         self.train = True if mode == "train" else False
         self.mode = mode
@@ -202,6 +277,7 @@ class Cars3D:
             cars = cars[:self.train_size]
         else:
             cars = cars[self.train_size:]
+        print(self.mode, self.train_size, cars)
         return self.read_all_files(cars)
 
     def read_all_files(self, paths):
@@ -235,7 +311,7 @@ class Cars3D:
             image = self.process_data(image)
             data.append(image)
             targets.append(target)
-
+       
         return torch.cat(data), targets
 
     def process_data(self, image):

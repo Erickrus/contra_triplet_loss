@@ -92,7 +92,7 @@ def plot_embeddings(embeddings, targets, colors, classes, xlim=None, ylim=None):
 
 def config():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--dataset', default="Cars3D",
+    parser.add_argument('-d', '--dataset', default="voiceprint",
                         help="dataset to process")
     parser.add_argument('-s', '--sampling_method', default="triplet",
                         help="sampling method")
